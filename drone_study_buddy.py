@@ -5,6 +5,7 @@ import threading
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _CORRECT_SFX = os.path.join(_SCRIPT_DIR, "correct.mp3")
 _WRONG_SFX = os.path.join(_SCRIPT_DIR, "wrong.mp3")
+_FIVE_SFX = os.path.join(_SCRIPT_DIR, "five.mp3")
 
 
 def _play(path):
@@ -180,7 +181,10 @@ def run_quiz():
         print(f"  {i + 1}. {opt}")
     while True:
         try:
-            choice = int(input("\nYour answer (1-4): ").strip()) - 1
+            raw = input("\nYour answer (1-4): ").strip()
+            if raw == "5":
+                _play(_FIVE_SFX)
+            choice = int(raw) - 1
             if 0 <= choice <= 3:
                 break
             print("Please enter a number between 1 and 4.")
