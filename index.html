@@ -113,6 +113,14 @@ const QUIZ = [
   { q: "What is a 'Return to Home' function?", opts: ["Manual landing mode", "Auto-flight back to takeoff point", "FPV racing term", "GPS calibration sequence"], ans: 1, exp: "RTH = Return to Home. Triggered on signal loss, it flies the drone back to its recorded takeoff GPS coordinates." }
 ];
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+shuffle(QUIZ);
+
 let quizIdx = 0;
 let isTyping = false;
 
