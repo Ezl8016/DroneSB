@@ -120,7 +120,6 @@ function shuffle(arr) {
   }
 }
 shuffle(QUIZ);
-
 let quizIdx = 0;
 let isTyping = false;
 
@@ -180,7 +179,12 @@ function getResponse(q) {
 }
 
 function showQuiz() {
+  if (quizIdx > 0 && quizIdx % QUIZ.length === 0) shuffle(QUIZ);
   const q = QUIZ[quizIdx % QUIZ.length];
+  const correct = q.opts[q.ans];
+  const opts = [...q.opts];
+  shuffle(opts);
+  const ansIdx = opts.indexOf(correct);
   const container = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'msg ai';
@@ -189,25 +193,24 @@ function showQuiz() {
   avatar.textContent = 'D';
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.innerHTML = `<div style="font-size:12px;color:#888;margin-bottom:6px;">Question ${(quizIdx % QUIZ.length) + 1} of ${QUIZ.length}</div>`;
   const card = document.createElement('div');
   card.className = 'quiz-card';
   card.innerHTML = `<p>${q.q}</p>`;
-  q.opts.forEach((opt, i) => {
+  opts.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'quiz-option';
     btn.textContent = opt;
     btn.onclick = function() {
       card.querySelectorAll('.quiz-option').forEach(b => b.disabled = true);
-      if (i === q.ans) {
+      if (i === ansIdx) {
         btn.classList.add('correct');
         playSound('sfx-correct');
         setTimeout(() => { appendMsg('ai', `✓ Correct! ${q.exp}`); quizIdx++; }, 700);
       } else {
         btn.classList.add('wrong');
-        card.querySelectorAll('.quiz-option')[q.ans].classList.add('correct');
+        card.querySelectorAll('.quiz-option')[ansIdx].classList.add('correct');
         playSound('sfx-wrong');
-        setTimeout(() => { appendMsg('ai', `Not quite. The answer is: **${q.opts[q.ans]}**\n\n${q.exp}`); quizIdx++; }, 700);
+        setTimeout(() => { appendMsg('ai', `Not quite. The answer is: **${opts[ansIdx]}**\n\n${q.exp}`); quizIdx++; }, 700);
       }
     };
     card.appendChild(btn);
