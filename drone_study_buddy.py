@@ -135,6 +135,24 @@ QUIZ = [
     }
 ]
 
+import random
+
+my_list = [ "q": "What does 'KV' mean when describing a drone motor?",
+        "opts": ["Kilovolts of power", "RPM per volt", "Kilo-watt capacity", "Kilogram load rating"],
+        "ans": 1,
+        "exp": "KV = RPM per volt. A 2400KV motor spins at 2400 RPM per volt applied.",  "q": "What does IMU stand for in a flight controller?",
+        "opts": ["Internal Motor Unit", "Inertial Measurement Unit", "Integrated Motor Uplink", "Input Management Utility"],
+        "ans": 1,
+        "exp": "IMU = Inertial Measurement Unit. It contains an accelerometer and gyroscope to detect orientation and movement.",  "q": "What altitude limit do recreational drone pilots follow in the US?",
+        "opts": ["200 ft AGL", "400 ft AGL", "500 ft MSL", "1000 ft AGL"],
+        "ans": 1,
+        "exp": "FAA requires recreational flyers to stay below 400 ft AGL (Above Ground Level) unless in controlled airspace with authorization.",  "q": "What is a 'Return to Home' function?",
+        "opts": ["Manual landing mode", "Auto-flight back to takeoff point", "FPV racing term", "GPS calibration sequence"],
+        "ans": 1,
+        "exp": "RTH = Return to Home. Triggered automatically on signal loss, it flies the drone back to its recorded takeoff GPS coordinates."]
+random.shuffle(my_list)
+print(my_list)
+
 QUICK_ASKS = {
     "1": "How do drones generate lift?",
     "2": "Explain drone flight controllers and how they work",
