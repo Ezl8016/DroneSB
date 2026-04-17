@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone Study Buddy</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
+  #app { display: flex; flex-direction: column; height: 620px; width: 100%; max-width: 680px; background: #fff; border-radius: 16px; border: 1px solid #e0e0e0; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+  #header { padding: 14px 16px 10px; border-bottom: 1px solid #e8e8e8; background: #fff; }
+  #header h2 { font-size: 15px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+  .drone-icon { width: 22px; height: 22px; }
+  #topics { display: flex; gap: 6px; padding: 10px 16px; flex-wrap: wrap; border-bottom: 1px solid #e8e8e8; background: #fafafa; }
+  .topic-btn { font-size: 12px; padding: 5px 11px; border-radius: 20px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .topic-btn:hover { background: #E6F1FB; color: #185FA5; border-color: #B5D4F4; }
+  #messages { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; background: #fafafa; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+  .bubble { max-width: 82%; font-size: 13.5px; line-height: 1.65; padding: 10px 13px; border-radius: 12px; }
+  .msg.ai .bubble { background: #fff; color: #1a1a1a; border-radius: 4px 12px 12px 12px; border: 1px solid #e8e8e8; }
+  .msg.user .bubble { background: #E6F1FB; color: #0C447C; border-radius: 12px 4px 12px 12px; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; margin-top: 2px; }
+  .ai-avatar { background: #B5D4F4; color: #0C447C; }
+  .user-avatar { background: #ddd; color: #555; }
+  #input-area { padding: 10px 16px 14px; border-top: 1px solid #e8e8e8; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
+  #user-input { flex: 1; resize: none; min-height: 38px; max-height: 100px; font-size: 13.5px; padding: 9px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fff; color: #1a1a1a; font-family: inherit; line-height: 1.4; overflow-y: auto; }
+  #user-input:focus { outline: none; border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,0.1); }
+  #send-btn { height: 38px; width: 38px; border-radius: 8px; border: 1px solid #ddd; background: #f5f5f5; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  #send-btn:hover { background: #E6F1FB; border-color: #B5D4F4; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 6px 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #aaa; animation: bounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+  .quiz-card { background: #f9f9f9; border: 1px solid #e8e8e8; border-radius: 10px; padding: 12px 14px; margin-top: 6px; }
+  .quiz-card p { font-size: 13px; color: #444; margin-bottom: 8px; font-weight: 500; }
+  .quiz-option { display: block; width: 100%; text-align: left; font-size: 13px; padding: 7px 10px; margin: 4px 0; border-radius: 7px; border: 1px solid #e0e0e0; background: #fff; cursor: pointer; color: #1a1a1a; transition: all 0.15s; font-family: inherit; }
+  .quiz-option:hover:not(:disabled) { background: #E6F1FB; border-color: #B5D4F4; color: #185FA5; }
+  .quiz-option.correct { background: #EAF3DE; border-color: #97C459; color: #3B6D11; }
+  .quiz-option.wrong { background: #FCEBEB; border-color: #F09595; color: #A32D2D; }
+  .quiz-option:disabled { cursor: default; }
+  @media (max-width: 500px) {
+    body { padding: 0; align-items: flex-start; }
+    #app { height: 100vh; border-radius: 0; border: none; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<audio id="sfx-correct" src="correct.mp3" preload="auto"></audio>
+<audio id="sfx-wrong" src="wrong.mp3" preload="auto"></audio>
+<audio id="sfx-five" src="five.mp3" preload="auto"></audio>
+
+<div id="app">
+  <div id="header">
+    <h2>
+      <svg class="drone-icon" viewBox="0 0 24 24" fill="none" stroke="#378ADD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M6 6l2 2M16 6l-2 2M6 18l2-2M16 18l-2-2"/>
+        <ellipse cx="4" cy="5" rx="2.5" ry="1.2" transform="rotate(-20 4 5)"/>
+        <ellipse cx="20" cy="5" rx="2.5" ry="1.2" transform="rotate(20 20 5)"/>
+        <ellipse cx="4" cy="19" rx="2.5" ry="1.2" transform="rotate(20 4 19)"/>
+        <ellipse cx="20" cy="19" rx="2.5" ry="1.2" transform="rotate(-20 20 19)"/>
+      </svg>
+      Drone Study Buddy
+    </h2>
+  </div>
+
+  <div id="topics">
+    <button class="topic-btn" onclick="quickAsk('How do drones generate lift?')">Aerodynamics</button>
+    <button class="topic-btn" onclick="quickAsk('Explain drone flight controllers and how they work')">Flight Controllers</button>
+    <button class="topic-btn" onclick="quickAsk('What are the main types of drones and their uses?')">Drone Types</button>
+    <button class="topic-btn" onclick="quickAsk('Explain FAA drone regulations for hobbyists in the US')">FAA Rules</button>
+    <button class="topic-btn" onclick="quickAsk('How does GPS work on drones?')">GPS & Navigation</button>
+    <button class="topic-btn" onclick="quickAsk('What is FPV drone racing?')">FPV Racing</button>
+    <button class="topic-btn" onclick="quickAsk('Quiz me on drone components')">Quiz me</button>
+  </div>
+
+  <div id="messages">
+    <div class="msg ai">
+      <div class="avatar ai-avatar">D</div>
+      <div class="bubble">Hey! I'm your drone study buddy. Ask me anything about drones — aerodynamics, components, regulations, FPV, navigation, or anything else. Tap a topic above or ask me to quiz you!</div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea id="user-input" placeholder="Ask about drones..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send-btn" onclick="sendMessage()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 8h12M9 3l5 5-5 5" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const KB = {
+  aerodynamics: `Drones generate lift through spinning rotors. Each rotor blade is an airfoil — curved on top, flatter on the bottom — which creates lower pressure above and higher pressure below, generating upward force (Bernoulli's principle). Multirotor drones use 4+ rotors spinning in alternating directions to cancel torque and maintain stability.\n\n**Key concepts:**\n- **Thrust**: upward force from rotors\n- **Drag**: air resistance opposing movement\n- **Weight/gravity**: drone must produce thrust > weight to ascend\n- **Roll, Pitch, Yaw**: three axes of rotation controlled by varying motor speeds`,
+  controllers: `A **flight controller (FC)** is the brain of the drone. It reads sensor data and adjusts motor speeds thousands of times per second to maintain stability.\n\n**Components:**\n- **IMU (Inertial Measurement Unit)**: accelerometer + gyroscope that detects orientation\n- **Barometer**: measures altitude via air pressure\n- **ESCs (Electronic Speed Controllers)**: convert FC signals to motor power\n- **PID tuning**: Proportional-Integral-Derivative algorithm that corrects flight errors\n\n**Popular FC firmware:** Betaflight (FPV), ArduPilot (autonomous), DJI's proprietary systems`,
+  types: `**Main drone categories:**\n\n1. **Multirotors** (quadcopters, hexacopters) — most common, stable, great for photography.\n2. **Fixed-wing** — longer range & endurance, used in agriculture/surveying.\n3. **Hybrid VTOL** — takes off vertically, transitions to fixed-wing flight.\n4. **Single-rotor** — helicopter design, more efficient for heavy payloads.\n5. **FPV racing drones** — tiny, ultra-fast, manual control through goggles.\n6. **Nano/micro drones** — indoor use, palm-sized.\n\nUse cases: photography, agriculture, delivery, search & rescue, mapping, inspection, racing.`,
+  faa: `**FAA drone rules (USA) as of 2024:**\n\n**Recreational flyers:**\n- Register if drone weighs 250g+ ($5, at FAA DroneZone)\n- Fly below 400 ft AGL\n- Stay within visual line of sight (VLOS)\n- Never fly over people or moving vehicles\n- Avoid controlled airspace without LAANC authorization\n\n**Commercial pilots:**\n- Require Part 107 certificate (written FAA exam)\n- Can fly over people with waiver in some cases\n\n**No-fly zones:** National parks, military bases, stadiums during events, Washington DC area.`,
+  gps: `**GPS on drones** enables autonomous flight and position hold.\n\n**How it works:**\n1. GPS receiver picks up signals from 4+ satellites\n2. Triangulates position (lat, long, altitude)\n3. Flight controller uses position data to maintain hover or follow a path\n\n**Modes enabled by GPS:**\n- **Position Hold (Loiter)**: stays in place when you release sticks\n- **Return to Home (RTH)**: auto-flies back if signal is lost\n- **Waypoint missions**: pre-programmed flight paths\n- **Follow Me**: drone tracks a moving GPS target\n\nGLONASS (Russian) and Galileo (EU) supplement US GPS. Most modern drones use multi-constellation receivers.`,
+  fpv: `**FPV (First Person View) racing** is a high-speed drone sport where pilots wear video goggles to see live feed from the drone's camera.\n\n**Key gear:**\n- **Frame**: 3"-5" carbon fiber, designed to survive crashes\n- **Motors**: high-KV brushless (2300-2700KV for 5" props)\n- **VTX (Video Transmitter)**: sends live video to goggles\n- **FPV Goggles**: DJI O3, Fat Shark, Orqa\n- **Radio controller**: FrSky, RadioMaster, TBS\n\n**Racing classes:** Toothpick (2-3"), Standard 5", Long Range (7+")\n\n**Leagues:** MultiGP (US), Drone Racing League (DRL), FAI World Drone Racing Championship`,
+  components: `**Core drone components:**\n\n- **Frame**: structural skeleton, usually carbon fiber\n- **Motors**: brushless DC motors, rated by KV (RPM per volt)\n- **Propellers**: push/pull air; size = diameter x pitch (e.g., 5x4.5)\n- **Battery**: LiPo (Lithium Polymer), rated in mAh and C-rating\n- **ESC**: Electronic Speed Controller, converts signals to motor power\n- **Flight Controller**: brain, runs stabilization firmware\n- **Receiver**: receives pilot inputs from radio transmitter\n- **GPS module**: position hold and autonomous flight\n- **Gimbal**: stabilizes camera on 2 or 3 axes\n- **FPV camera**: wide-angle, low latency for piloting`
+};
+
+const QUIZ = [
+  { q: "What does 'KV' mean when describing a drone motor?", opts: ["Kilovolts of power", "RPM per volt", "Kilo-watt capacity", "Kilogram load rating"], ans: 1, exp: "KV = RPM per volt. A 2400KV motor spins at 2400 RPM per volt applied." },
+  { q: "What does IMU stand for in a flight controller?", opts: ["Internal Motor Unit", "Inertial Measurement Unit", "Integrated Motor Uplink", "Input Management Utility"], ans: 1, exp: "IMU = Inertial Measurement Unit. It contains an accelerometer and gyroscope to detect orientation and movement." },
+  { q: "What altitude limit do recreational drone pilots follow in the US?", opts: ["200 ft AGL", "400 ft AGL", "500 ft MSL", "1000 ft AGL"], ans: 1, exp: "FAA requires recreational flyers to stay below 400 ft AGL unless in controlled airspace with authorization." },
+  { q: "In a quadcopter, why do adjacent motors spin in opposite directions?", opts: ["To generate more lift", "To cancel out rotational torque", "To reduce power consumption", "To improve GPS accuracy"], ans: 1, exp: "Counter-rotating props cancel torque — if all spun the same way, the drone body would spin in the opposite direction." },
+  { q: "What is a 'Return to Home' function?", opts: ["Manual landing mode", "Auto-flight back to takeoff point", "FPV racing term", "GPS calibration sequence"], ans: 1, exp: "RTH = Return to Home. Triggered on signal loss, it flies the drone back to its recorded takeoff GPS coordinates." }
+];
+
+let quizIdx = 0;
+let isTyping = false;
+
+function playSound(id) {
+  const el = document.getElementById(id);
+  el.currentTime = 0;
+  el.play();
+}
+
+function fmt(text) {
+  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+}
+
+function appendMsg(role, content) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const avatar = document.createElement('div');
+  avatar.className = `avatar ${role === 'ai' ? 'ai-avatar' : 'user-avatar'}`;
+  avatar.textContent = role === 'ai' ? 'D' : 'U';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = fmt(content);
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = 'typing-indicator';
+  div.innerHTML = `<div class="avatar ai-avatar">D</div><div class="bubble"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function getResponse(q) {
+  const ql = q.toLowerCase();
+  if (ql.includes('quiz') || ql.includes('test me') || ql.includes('question')) return '__QUIZ__';
+  if (ql.includes('lift') || ql.includes('aerody') || ql.includes('rotor') || ql.includes('thrust') || ql.includes('propell')) return KB.aerodynamics;
+  if (ql.includes('flight controller') || ql.includes('imu') || ql.includes('esc') || ql.includes('pid') || ql.includes('betaflight') || ql.includes('stabiliz')) return KB.controllers;
+  if (ql.includes('type') || ql.includes('kind') || ql.includes('category') || ql.includes('fixed wing') || ql.includes('multirot') || ql.includes('vtol')) return KB.types;
+  if (ql.includes('faa') || ql.includes('regulat') || ql.includes('law') || ql.includes('legal') || ql.includes('part 107') || ql.includes('airspace') || ql.includes('register')) return KB.faa;
+  if (ql.includes('gps') || ql.includes('navigation') || ql.includes('waypoint') || ql.includes('position hold') || ql.includes('return to home') || ql.includes('glonass')) return KB.gps;
+  if (ql.includes('fpv') || ql.includes('racing') || ql.includes('goggles') || ql.includes('first person')) return KB.fpv;
+  if (ql.includes('component') || ql.includes('parts') || ql.includes('motor') || ql.includes('battery') || ql.includes('lipo') || ql.includes('frame') || ql.includes('gimbal')) return KB.components;
+  if (ql.includes('hello') || ql.includes('hi') || ql.includes('hey')) return "Hey there! Ready to study drones? Ask me about aerodynamics, flight controllers, FAA rules, GPS navigation, FPV racing, or any drone topic.";
+  return `That's a great question about "${q}"! This study buddy covers core drone topics — aerodynamics, components, flight controllers, FAA regulations, GPS navigation, and FPV racing. Try rephrasing or pick a topic above.`;
+}
+
+function showQuiz() {
+  const q = QUIZ[quizIdx % QUIZ.length];
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar ai-avatar';
+  avatar.textContent = 'D';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = `<div style="font-size:12px;color:#888;margin-bottom:6px;">Question ${(quizIdx % QUIZ.length) + 1} of ${QUIZ.length}</div>`;
+  const card = document.createElement('div');
+  card.className = 'quiz-card';
+  card.innerHTML = `<p>${q.q}</p>`;
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-option';
+    btn.textContent = opt;
+    btn.onclick = function() {
+      card.querySelectorAll('.quiz-option').forEach(b => b.disabled = true);
+      if (i === q.ans) {
+        btn.classList.add('correct');
+        playSound('sfx-correct');
+        setTimeout(() => { appendMsg('ai', `✓ Correct! ${q.exp}`); quizIdx++; }, 700);
+      } else {
+        btn.classList.add('wrong');
+        card.querySelectorAll('.quiz-option')[q.ans].classList.add('correct');
+        playSound('sfx-wrong');
+        setTimeout(() => { appendMsg('ai', `Not quite. The answer is: **${q.opts[q.ans]}**\n\n${q.exp}`); quizIdx++; }, 700);
+      }
+    };
+    card.appendChild(btn);
+  });
+  bubble.appendChild(card);
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendMessage() {
+  if (isTyping) return;
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (text === '5') playSound('sfx-five');
+
+  input.value = '';
+  input.style.height = 'auto';
+  appendMsg('user', text);
+  isTyping = true;
+  showTyping();
+  setTimeout(() => {
+    removeTyping();
+    isTyping = false;
+    const resp = getResponse(text);
+    if (resp === '__QUIZ__') {
+      appendMsg('ai', "Let's test your drone knowledge!");
+      setTimeout(() => showQuiz(), 100);
+    } else {
+      appendMsg('ai', resp);
+    }
+  }, 600 + Math.random() * 400);
+}
+
+function quickAsk(text) {
+  document.getElementById('user-input').value = text;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+</script>
+</body>
+</html>
