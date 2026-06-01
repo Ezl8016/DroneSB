@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone Mission Control</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; background: #0d1117; color: #c9d1d9; min-height: 100vh; display: flex; flex-direction: column; }
+header { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+header h1 { font-size: 15px; font-weight: 600; color: #f0f6fc; letter-spacing: 0.5px; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #f85149; flex-shrink: 0; }
+.status-dot.on { background: #3fb950; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.status-label { font-size: 12px; color: #8b949e; }
+
+.main { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 49px); }
+
+/* Left panel: telemetry */
+.left { width: 220px; flex-shrink: 0; border-right: 1px solid #30363d; background: #161b22; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.panel-title { font-size: 10px; font-weight: 600; color: #8b949e; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.tele-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tele-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; }
+.tele-label { font-size: 10px; color: #8b949e; margin-bottom: 3px; }
+.tele-val { font-size: 15px; font-weight: 600; color: #58a6ff; font-variant-numeric: tabular-nums; }
+.tele-unit { font-size: 10px; color: #8b949e; margin-left: 2px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge.armed { background: #3fb95020; color: #3fb950; border: 1px solid #3fb95040; }
+.badge.disarmed { background: #f8514920; color: #f85149; border: 1px solid #f8514940; }
+.badge.mode { background: #58a6ff20; color: #58a6ff; border: 1px solid #58a6ff40; font-size: 10px; }
+
+/* Center: command + log */
+.center { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.log-area { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; background: #0d1117; }
+.log-entry { display: flex; gap: 10px; font-size: 12.5px; line-height: 1.5; }
+.log-time { color: #484f58; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.log-msg { color: #c9d1d9; }
+.log-msg.cmd { color: #79c0ff; }
+.log-msg.ok { color: #3fb950; }
+.log-msg.err { color: #f85149; }
+.log-msg.sys { color: #d29922; }
+.input-bar { border-top: 1px solid #30363d; padding: 10px 16px; display: flex; gap: 8px; background: #161b22; }
+#cmd-input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 13px; padding: 8px 12px; font-family: inherit; outline: none; }
+#cmd-input:focus { border-color: #58a6ff; box-shadow: 0 0 0 3px #58a6ff15; }
+#cmd-input::placeholder { color: #484f58; }
+#send-btn { background: #238636; border: 1px solid #2ea043; color: #fff; border-radius: 6px; padding: 8px 18px; font-size: 13px; cursor: pointer; font-weight: 600; transition: background 0.15s; }
+#send-btn:hover { background: #2ea043; }
+
+/* Right panel: quick commands */
+.right { width: 200px; flex-shrink: 0; border-left: 1px solid #30363d; background: #161b22; padding: 14px; overflow-y: auto; }
+.cmd-group { margin-bottom: 16px; }
+.cmd-group-title { font-size: 10px; font-weight: 600; color: #8b949e; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.cmd-btn { display: block; width: 100%; text-align: left; padding: 6px 10px; margin-bottom: 4px; background: #0d1117; border: 1px solid #30363d; border-radius: 5px; color: #c9d1d9; font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.cmd-btn:hover { background: #161b22; border-color: #58a6ff; color: #58a6ff; }
+.cmd-btn.danger:hover { border-color: #f85149; color: #f85149; }
+.cmd-btn.success:hover { border-color: #3fb950; color: #3fb950; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="status-dot" id="conn-dot"></div>
+  <h1>Drone Mission Control</h1>
+  <span class="status-label" id="conn-label">Connecting...</span>
+</header>
+
+<div class="main">
+  <!-- Telemetry -->
+  <div class="left">
+    <div>
+      <div class="panel-title">Status</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="badge disarmed" id="armed-badge">DISARMED</span>
+        <span class="badge mode" id="mode-badge">—</span>
+      </div>
+    </div>
+    <div>
+      <div class="panel-title">Position</div>
+      <div class="tele-grid">
+        <div class="tele-card" style="grid-column:1/-1">
+          <div class="tele-label">Latitude</div>
+          <div class="tele-val" style="font-size:12px" id="t-lat">—</div>
+        </div>
+        <div class="tele-card" style="grid-column:1/-1">
+          <div class="tele-label">Longitude</div>
+          <div class="tele-val" style="font-size:12px" id="t-lon">—</div>
+        </div>
+        <div class="tele-card">
+          <div class="tele-label">Altitude</div>
+          <div class="tele-val" id="t-alt">—<span class="tele-unit">m</span></div>
+        </div>
+        <div class="tele-card">
+          <div class="tele-label">Heading</div>
+          <div class="tele-val" id="t-hdg">—<span class="tele-unit">°</span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-title">System</div>
+      <div class="tele-grid">
+        <div class="tele-card">
+          <div class="tele-label">Battery</div>
+          <div class="tele-val" id="t-bat">—<span class="tele-unit">%</span></div>
+        </div>
+        <div class="tele-card">
+          <div class="tele-label">GPS Sats</div>
+          <div class="tele-val" id="t-sats">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log + input -->
+  <div class="center">
+    <div class="log-area" id="log"></div>
+    <div class="input-bar">
+      <input id="cmd-input" type="text" placeholder='Type a command, e.g. "takeoff 10" or "go north 20"' autocomplete="off" />
+      <button id="send-btn" onclick="sendCmd()">Send</button>
+    </div>
+  </div>
+
+  <!-- Quick commands -->
+  <div class="right">
+    <div class="cmd-group">
+      <div class="cmd-group-title">Flight</div>
+      <button class="cmd-btn success" onclick="quickCmd('arm')">Arm</button>
+      <button class="cmd-btn danger" onclick="quickCmd('disarm')">Disarm</button>
+      <button class="cmd-btn success" onclick="quickCmd('takeoff 10')">Takeoff 10m</button>
+      <button class="cmd-btn danger" onclick="quickCmd('land')">Land</button>
+      <button class="cmd-btn" onclick="quickCmd('hover')">Hover</button>
+      <button class="cmd-btn" onclick="quickCmd('return to home')">Return Home</button>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-title">Direction</div>
+      <button class="cmd-btn" onclick="quickCmd('go north 10')">North 10m</button>
+      <button class="cmd-btn" onclick="quickCmd('go south 10')">South 10m</button>
+      <button class="cmd-btn" onclick="quickCmd('go east 10')">East 10m</button>
+      <button class="cmd-btn" onclick="quickCmd('go west 10')">West 10m</button>
+      <button class="cmd-btn" onclick="quickCmd('up 5')">Up 5m</button>
+      <button class="cmd-btn" onclick="quickCmd('down 5')">Down 5m</button>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-title">Rotation</div>
+      <button class="cmd-btn" onclick="quickCmd('rotate right 90')">Rotate Right 90°</button>
+      <button class="cmd-btn" onclick="quickCmd('rotate left 90')">Rotate Left 90°</button>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-title">Speed</div>
+      <button class="cmd-btn" onclick="quickCmd('speed 2')">Speed 2 m/s</button>
+      <button class="cmd-btn" onclick="quickCmd('speed 5')">Speed 5 m/s</button>
+      <button class="cmd-btn" onclick="quickCmd('speed 10')">Speed 10 m/s</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let lastLogCount = 0;
+
+function addLog(time, msg, type) {
+  const log = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${escHtml(msg)}</span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function sendCmd() {
+  const input = document.getElementById('cmd-input');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  input.value = '';
+  addLog(now(), '> ' + cmd, 'cmd');
+  fetch('/api/command', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cmd})
+  })
+  .then(r => r.json())
+  .then(d => addLog(now(), d.msg, d.ok ? 'ok' : 'err'))
+  .catch(e => addLog(now(), 'Error: ' + e, 'err'));
+}
+
+function quickCmd(cmd) {
+  document.getElementById('cmd-input').value = cmd;
+  sendCmd();
+}
+
+function now() {
+  return new Date().toLocaleTimeString('en-US', {hour12: false});
+}
+
+function updateTelemetry() {
+  fetch('/api/telemetry').then(r => r.json()).then(d => {
+    const dot = document.getElementById('conn-dot');
+    const label = document.getElementById('conn-label');
+    if (d.connected) { dot.classList.add('on'); label.textContent = 'Connected'; }
+    else { dot.classList.remove('on'); label.textContent = 'Disconnected'; }
+
+    document.getElementById('armed-badge').textContent = d.armed ? 'ARMED' : 'DISARMED';
+    document.getElementById('armed-badge').className = 'badge ' + (d.armed ? 'armed' : 'disarmed');
+    document.getElementById('mode-badge').textContent = d.mode;
+    document.getElementById('t-lat').textContent = d.lat !== 0 ? d.lat.toFixed(6) : '—';
+    document.getElementById('t-lon').textContent = d.lon !== 0 ? d.lon.toFixed(6) : '—';
+    document.getElementById('t-alt').innerHTML = d.alt.toFixed(1) + '<span class="tele-unit">m</span>';
+    document.getElementById('t-hdg').innerHTML = d.heading.toFixed(0) + '<span class="tele-unit">°</span>';
+    document.getElementById('t-bat').innerHTML = d.battery + '<span class="tele-unit">%</span>';
+    document.getElementById('t-sats').textContent = d.satellites;
+
+    // append new log entries
+    const newEntries = d.log.slice(lastLogCount);
+    newEntries.forEach(e => addLog(e.t, e.msg, 'sys'));
+    lastLogCount = d.log.length;
+  }).catch(() => {});
+}
+
+document.getElementById('cmd-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendCmd();
+});
+
+addLog(now(), 'Mission Control ready. Connecting to drone...', 'sys');
+setInterval(updateTelemetry, 1000);
+updateTelemetry();
+</script>
+</body>
+</html>
